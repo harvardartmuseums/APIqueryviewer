@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+<title>API query tester</title>
+
+<style>
+body, html {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	cursor: default;
+	background-color: #FFFFFF;
+	font-family: Helvetica;
+	margin: 0px;
+	padding: 0px;
+	width: 100%;
+	height: 100%;
+	overflow-x: hidden;
+}
+div, span {
+	box-sizing: border-box;
+}
+a {
+	color: black;
+	text-decoration: none;
+}
+#apiPrompt {
+	width: 100vw;
+	padding: 2vw;
+	text-align: center;
+	word-wrap: break-word;
+}
+#apiURL {
+	width: 80vw;
+}
+#container {
+	display: flex;
+	flex-wrap: wrap-reverse;
+	height: auto;
+	width: 80vw;
+	margin: 2vw 10vw;
+}
+.object {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1;
+	width: 7vw;
+	height: 7vw;
+	margin: .5vw;
+}
+.object .message {
+	width: 100%;
+	max-height: 100%;
+	display: block;
+	text-align: center;
+	overflow: hidden;
+	font-size: 50%;
+}
+.object:hover .tooltip {
+	visibility: visible;
+}
+.object .tooltip {
+	visibility: hidden;
+	box-sizing: border-box;
+	background-color: rgba(0, 0, 0, .8);
+	color: #ffffff;
+	position: absolute;
+	z-index: 3;
+	padding: .2vw;
+	border-radius: .2vw;
+	top: calc(100% + .2vw);
+	left: -4vw;
+	width: 15vw;
+}
+.tooltip::after {
+	content: "";
+	position: absolute;
+	border-width: .2vw;
+	border-style: solid;
+	bottom: 100%;
+	left: calc(50% - .2vw);
+	border-color: transparent transparent rgba(0, 0, 0, .8) transparent;
+}
+.tooltip .title {
+	font-size: 125%;
+	font-weight: bold;
+	font-style: italic;
+}
+#error {
+	width: 100%;
+	text-align: center;
+	display: none;
+	padding: 2vw;
+}
+#loadMore {
+	width: 100%;
+	text-align: center;
+	display: none;
+	padding: 2vw;
+}
+.button {
+	display: block;
+	padding: .5em 1em;
+	width: 10em;
+	margin: 0 calc(50vw - 5em);
+	background-color: #AAAAAA;
+	color: #FFFFFF;
+	border: 2px #999999 solid;
+}
+.button:hover {
+	background-color: #DDDDDD;
+	color: #FFFFFF;
+}
+</style>
+</head>
+<body>
+<div id="apiPrompt">
+<input id="apiURL" type="text" autofocus="true" list="apiExamples" pattern="http:\/\/api\.harvardartmuseums\.org\/object\?.*apikey=.*" spellcheck="false" autocorrect="off" onchange="update()" />
+<datalist id="apiExamples">
+	<option value="http://api.harvardartmuseums.org/object?gallery=any&apikey=">
+	<option value="http://api.harvardartmuseums.org/object?culture=American&apikey=">
+	<option value="http://api.harvardartmuseums.org/object?keyword=Tragedy&apikey=">
+	<option value="http://api.harvardartmuseums.org/object?classification=Paintings&apikey=">
+</datalist>
+</div>
+<div id="error">Error loading data</div>
+<div id="loadMore"><span onclick="loadData()" class="button">Load More...</span></div>
+<div id="container"></div>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script>
+var apiURL = "";
+var page = 1;
+
+var pageParam = /page=([^&]*)&?/i;
+var regex;
+
+update();
+
+function update() {
+	if (document.getElementById("apiURL").checkValidity()) {
+		apiURL = document.getElementById("apiURL").value;
+		if (regex = pageParam.exec(apiURL)) {
+			page = regex[1];
+			apiURL = apiURL.slice(0, regex.index) + apiURL.slice(regex.index + regex[0].length);
+		} else {
+			page = 1;
+		}
+		$("#container").empty();
+		document.getElementById("loadMore").style.display = "none";
+		loadData();
+	} else {
+		document.getElementById("apiURL").value = apiURL;
+	}
+}
+
+function loadData() {
+	var xmlrequest = new XMLHttpRequest();
+
+	xmlrequest.onreadystatechange = function() {
+		if (this.readyState == 4) {
+			if (this.status == 200) {
+				document.getElementById("error").style.display = "none";
+				var data = JSON.parse(this.responseText);
+				addObjects(data.records);
+				if (page < data.info.pages) {
+					page++;
+					document.getElementById("loadMore").style.display = "block";
+				} else {
+					document.getElementById("loadMore").style.display = "none";
+				}
+			} else {
+				document.getElementById("error").style.display = "block";
+			}
+		}
+	};
+				
+	xmlrequest.open("GET", apiURL + "&page=" + page, true);
+	xmlrequest.send();
+}
+
+function addObjects(objects) {
+	var maxSize = Math.ceil(window.innerWidth/5);
+	var copySize = 256;
+	if (maxSize < copySize) {
+		copySize = maxSize;
+	}
+
+	var div;
+	var link;
+	for (var i = 0; i < objects.length; i++) {
+		link = document.createElement("a");
+		link.href = objects[i].url;
+		div = document.createElement("div");
+		div.id = objects[i].objectid;
+		div.className = "object";
+
+		if (objects[i].imagecount != 0) {
+			switch (objects[i].imagepermissionlevel) {
+				case 0:
+					div.style.background = "#000000 url(\"" + objects[i].images[0].baseimageurl + "?width=" + maxSize + "&height=" + maxSize + "\") no-repeat center center/cover";
+					break;
+				case 1:
+					div.style.background = "#000000 url(\"" + objects[i].images[0].baseimageurl + "?width=" + copySize + "&height=" + copySize + "\") no-repeat center center/cover";
+					break;
+				case 2:
+					div.innerHTML = "<span class=\"message\">Image cannot be displayed for copyright reasons</span>";
+					break;
+			}
+		} else {
+			div.innerHTML = "<span class=\"message\">Object has not yet been photographed</span>";
+		}
+
+		var tooltip = document.createElement("span");
+		tooltip.className = "tooltip";
+		tooltip.innerHTML = generateLabel(objects[i]);
+		div.appendChild(tooltip);
+
+		link.appendChild(div);
+
+		document.getElementById("container").appendChild(link);
+	}
+}
+
+function generateLabel(object) {
+	var label = [];
+
+	label.push(getArtists(object.people));
+	label.push(formatTitle(object.title));
+	label.push(object.dated);
+	label.push(object.culture);
+	label.push(object.classification);
+	label.push(object.objectnumber);
+
+	for (var i = 0; i < label.length; i++) {
+		if (label[i] == undefined || label[i].length == 0) {
+			label.splice(i, 1);
+			i--;
+		}
+	}
+
+	return label.join("<br />");
+}
+
+function getArtists(people) {
+	var artists = [];
+	if (people != undefined) {
+		for (var i = 0; i < people.length; i++) {
+			if (people[i].role == "Artist") {
+				artists.push(people[i].displayname);
+			}
+		}
+	}
+	return artists.join(", ");
+}
+
+function formatTitle(title) {
+	var ret = "";
+
+	if (title != undefined && title != "") {
+		ret += "<span class=\"title\">";
+		if (title.length <= 100) {
+			ret += title;
+		} else {
+			ret += title.slice(0, 100) + "...";
+		}
+		ret += "</span>";
+	}
+
+	return ret;
+}
+</script>
+</body>
+</html>
