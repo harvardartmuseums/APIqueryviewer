@@ -6,7 +6,7 @@ Displays the objects returned by a given request to the Harvard Art Museums API 
 ## Requirements
 
 * A modern web browser
-* Harvard Art Museums API Key (get one [here][http://www.harvardartmuseums.org/collections/api])
+* Harvard Art Museums API Key (get one [here](http://www.harvardartmuseums.org/collections/api))
 
 ### Installation
 
